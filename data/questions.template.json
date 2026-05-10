@@ -1,0 +1,18 @@
+[
+    {
+        "id": 1,
+        "category_id": 1,
+        "question": "WHO IS JEFF BEZOS?",
+        "options": [
+            "A BUSINESSMAN AND FOUNDER OF AMAZON.",
+            "A FAMOUS ACTOR.",
+            "A POLITICIAN.",
+            "A PROFESSOR.",
+            "AN ATHLETE."
+        ],
+        "correct_answer": "A BUSINESSMAN AND FOUNDER OF AMAZON.",
+        "location": "(ART: 1)** [TITULO I]  [CAPITULO I]",
+        "code_question": "180837",
+        "difficulty_level": "media"
+    }
+]
