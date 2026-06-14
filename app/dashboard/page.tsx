@@ -7,6 +7,7 @@ import { getQuizzesAction, deleteQuizAction } from '@/features/quiz/actions'
 import { getUserAttemptsAction } from '@/features/attempts/actions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Loader } from '@/components/loader'
 import { Quiz, QuizAttempt } from '@/lib/types'
 import { Navbar } from '@/components/layout/navbar'
 import { Plus, BarChart3, BookOpen, CheckCircle, Percent, Play, Pencil, Trash2, ChevronRight } from 'lucide-react'
@@ -56,11 +57,7 @@ export default function Dashboard() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    )
+    return <Loader message="Cargando dashboard..." />
   }
 
   const completedQuizzes = attempts.filter((a) => a.completed_at).length

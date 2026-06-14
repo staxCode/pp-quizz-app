@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from '@/components/theme-provider'
+import { PageTransition } from '@/components/page-transition'
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
@@ -40,7 +41,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="font-sans antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          {children}
+          <PageTransition>{children}</PageTransition>
           <Toaster richColors position="top-right" />
         </ThemeProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}

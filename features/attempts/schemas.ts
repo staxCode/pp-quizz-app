@@ -16,7 +16,7 @@ export const getQuizAttemptsInputSchema = z.object({
 
 export const recordResponseInputSchema = z.object({
   attemptId: z.string().uuid('ID de intento invalido'),
-  questionId: z.bigint(),
+  questionId: z.number().int().positive('ID de pregunta invalido'),
   selectedAnswer: z.string().max(500, 'Respuesta demasiado larga'),
   isCorrect: z.boolean(),
 })

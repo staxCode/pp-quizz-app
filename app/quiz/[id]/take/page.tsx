@@ -11,6 +11,7 @@ import { getQuizQuestionsAction } from '@/features/quiz/actions'
 import { Question, QuizAttempt } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Loader } from '@/components/loader'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { buildScoredResponses, calculateScorePercentage } from '@/features/attempts/services/scoring'
@@ -98,11 +99,7 @@ export default function TakeQuiz() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    )
+    return <Loader message="Preparando quiz..." />
   }
 
   if (questions.length === 0) {
