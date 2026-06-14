@@ -29,7 +29,5 @@ yarn-debug.log*
 yarn-error.log*
 
 # Files
-data/questions.local.json
-
-# Scripts json
-scripts/*.json
+data/*.json
+scripts/*.ts
