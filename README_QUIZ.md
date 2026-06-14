@@ -32,14 +32,18 @@ Una aplicación web completa para crear, gestionar y tomar cuestionarios interac
 ✅ **Experiencia de Cuestionario**
 - Interfaz intuitiva para tomar cuestionarios
 - Progreso visual durante el cuestionario
-- Navegación entre preguntas
+- Navegación entre preguntas con bloqueo inteligente (no se puede saltar sin responder)
 - Indicador de preguntas respondidas
+- Modal de instrucciones al inicio del quiz
+- Barra de progreso con contador respondidas/total
 
 ✅ **Resultados y Estadísticas**
 - Puntuación inmediata después de completar
 - Revisión detallada de respuestas
-- Historial de intentos
+- Historial de intentos con scroll (máx. 5 visibles)
 - Estadísticas de progreso en el dashboard
+- Continuación de intentos en progreso desde el dashboard
+- Badge "Completado" en quizzes con puntuación perfecta (100%)
 
 ## Estructura de la Base de Datos
 
@@ -305,6 +309,11 @@ Carga preguntas desde el archivo JSON a la base de datos.
 
 - ✅ **Transiciones entre páginas** — Animaciones suaves (fade-in + slide-up) al navegar entre módulos usando `PageTransition` y `tw-animate-css`.
 - ✅ **Loader unificado** — Componente `Loader` reutilizable con spinner animado y mensaje contextual para todas las pantallas que cargan datos del backend.
+- ✅ **Navegación inteligente en quizzes** — No se puede pasar a la siguiente pregunta sin responder la actual; los indicadores numéricos se bloquean/desbloquean según el progreso.
+- ✅ **Modal de instrucciones** — Al iniciar un quiz se muestra un diálogo explicando las reglas (responder todas, no saltar, envío solo cuando esté completo).
+- ✅ **Intento único por montaje** — Guard `useRef` para evitar crear intentos duplicados por doble renderizado de React.
+- ✅ **Dashboard mejorado** — Scroll en intentos recientes (>5), tarjetas cliqueables (completadas → resultados, en progreso → continuar), badge "Completado" en quizzes con 100%.
+- ✅ **Eliminación consistente** — Al eliminar un quiz se limpian también sus intentos del estado local del dashboard.
 
 ## Licencia
 
