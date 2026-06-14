@@ -69,7 +69,9 @@ lib/
     server.ts
 
 components/
+  loader.tsx
   navbar.tsx
+  page-transition.tsx
   ui/*
 
 data/
@@ -157,7 +159,7 @@ Definir en `.env`:
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...   # necesaria para rutas/scripts admin
 ```
 
@@ -188,6 +190,18 @@ Script adicional:
 - Incorporar paginacion/filtros en seleccion de preguntas si crece el banco.
 - Crear diagrama entidad-relacion en `docs/` para onboarding tecnico.
 
-## 12. Estado general
+## 12. Animaciones y experiencia de usuario
+
+Se agregaron dos componentes para mejorar la experiencia de navegacion y carga:
+
+- **`components/page-transition.tsx`**: Envuelve el contenido del layout raiz y aplica una animacion CSS (fade-in + slide-up) en cada cambio de ruta usando `usePathname()` + `key` de React, aprovechando `tw-animate-css`.
+
+- **`components/loader.tsx`**: Componente reutilizable que reemplaza los spinners inline en todas las paginas. Ofrece dos variantes:
+  - `Loader` — version full-screen con spinner de doble anillo y texto opcional.
+  - `InlineLoader` — version compacta para cargas parciales dentro de contenedores.
+
+Las paginas que ahora usan `Loader`: Dashboard, Take Quiz, Edit Quiz, Quiz Results.
+
+## 13. Estado general
 
 El proyecto tiene una base funcional clara para un sistema de quizzes con autenticacion y persistencia. La separacion por rutas, acciones y cliente Supabase es consistente y permite evolucionar la aplicacion de forma incremental.

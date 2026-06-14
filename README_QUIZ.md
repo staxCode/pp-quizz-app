@@ -117,7 +117,9 @@ components/
 ├── layout/
 │   └── navbar.tsx
 ├── ui/
+├── loader.tsx                     # Loader reutilizable (full-screen e inline)
 ├── navbar.tsx (re-export bridge)
+├── page-transition.tsx            # Animacion suave entre paginas
 └── theme-provider.tsx
 
 hooks/
@@ -240,7 +242,7 @@ El archivo de preguntas debe tener este formato:
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key (solo para scripts)
 ```
 
@@ -298,6 +300,11 @@ Carga preguntas desde el archivo JSON a la base de datos.
 - [ ] Panel de administración para moderadores
 - [ ] Tests de integración para flujos críticos
 - [ ] Validación con Zod en backend y formularios
+
+## Mejoras Recientes
+
+- ✅ **Transiciones entre páginas** — Animaciones suaves (fade-in + slide-up) al navegar entre módulos usando `PageTransition` y `tw-animate-css`.
+- ✅ **Loader unificado** — Componente `Loader` reutilizable con spinner animado y mensaje contextual para todas las pantallas que cargan datos del backend.
 
 ## Licencia
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { getAttemptResponsesAction } from '@/features/attempts/actions'
 import { getQuizQuestionsAction } from '@/features/quiz/actions'
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CheckCircle, XCircle, BarChart3 } from 'lucide-react'
 import confetti from 'canvas-confetti'
+import { PageBreadcrumbs } from '@/components/page-breadcrumbs'
 
 export default function QuizResults() {
   const params = useParams()
@@ -19,6 +20,8 @@ export default function QuizResults() {
   const [responses, setResponses] = useState<Response[]>([])
   const [questions, setQuestions] = useState<Question[]>([])
   const [loading, setLoading] = useState(true)
+
+  const confettiFired = useRef(false)
 
   useEffect(() => {
     const loadResults = async () => {
@@ -39,6 +42,20 @@ export default function QuizResults() {
     loadResults()
   }, [quizId, attemptId])
 
+  const correctCount = responses.filter((r) => r.is_correct).length
+  const percentage = responses.length > 0 ? Math.round((correctCount / responses.length) * 100) : 0
+
+  useEffect(() => {
+    if (!loading && responses.length > 0 && percentage === 100 && !confettiFired.current) {
+      confetti({
+        particleCount: 180,
+        spread: 100,
+        origin: { y: 0.6 },
+      })
+      confettiFired.current = true
+    }
+  }, [loading, percentage, responses.length])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -46,9 +63,6 @@ export default function QuizResults() {
       </div>
     )
   }
-
-  const correctCount = responses.filter((r) => r.is_correct).length
-  const percentage = Math.round((correctCount / responses.length) * 100)
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-600'
@@ -62,19 +76,13 @@ export default function QuizResults() {
     return 'bg-red-50'
   }
 
-  useEffect(() => {
-    if (!loading && responses.length > 0 && percentage === 100) {
-      confetti({
-        particleCount: 180,
-        spread: 100,
-        origin: { y: 0.6 },
-      })
-    }
-  }, [loading, percentage, responses.length])
-
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
+        <PageBreadcrumbs items={[
+          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'Resultados' },
+        ]} />
         {/* Score Card */}
         <div className={`rounded-lg p-8 mb-8 ${getScoreBgColor(percentage)}`}>
           <div className="flex flex-col items-center justify-center">

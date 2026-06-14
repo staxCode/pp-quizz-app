@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { useDebounce } from '@/hooks/use-debounce'
 import {
   addQuestionToQuizAction,
   getQuestionsAction,
@@ -13,12 +14,19 @@ import {
 import { Quiz, Question } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Loader } from '@/components/loader'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { X, Plus, Search } from 'lucide-react'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { Plus, Search, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { PageBreadcrumbs } from '@/components/page-breadcrumbs'
 
 export default function EditQuiz() {
   const params = useParams()
@@ -30,10 +38,16 @@ export default function EditQuiz() {
   const [availableQuestions, setAvailableQuestions] = useState<Question[]>([])
   const [filteredQuestions, setFilteredQuestions] = useState<Question[]>([])
   const [searchTerm, setSearchTerm] = useState('')
+  const debouncedSearch = useDebounce(searchTerm, 300)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [addingBatch, setAddingBatch] = useState(false)
+  const [removingBatch, setRemovingBatch] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [selectedQuizIds, setSelectedQuizIds] = useState<Set<bigint>>(new Set())
+  const [selectedAvailableIds, setSelectedAvailableIds] = useState<Set<bigint>>(new Set())
+  const [dirty, setDirty] = useState(false)
 
   useEffect(() => {
     const loadData = async () => {
@@ -66,25 +80,61 @@ export default function EditQuiz() {
     const filtered = availableQuestions.filter(
       (q) =>
         !quizQuestions.find((qq) => qq.id === q.id) &&
-        (q.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          q.id.toString().includes(searchTerm))
+        (q.question.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+          q.id.toString().includes(debouncedSearch))
     )
     setFilteredQuestions(filtered)
-  }, [searchTerm, availableQuestions, quizQuestions])
+  }, [debouncedSearch, availableQuestions, quizQuestions])
+
+  useEffect(() => {
+    if (!dirty && (title !== quiz?.title || description !== (quiz?.description || ''))) {
+      setDirty(true)
+    }
+  }, [title, description])
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (dirty) {
+        e.preventDefault()
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [dirty])
 
   const handleSaveQuiz = async () => {
     if (!quiz) return
 
+    if (!title.trim()) {
+      toast.error('El titulo del quiz no puede estar vacio')
+      return
+    }
+
+    if (quizQuestions.length === 0) {
+      toast.error('Debes agregar al menos una pregunta al quiz')
+      return
+    }
+
     setSaving(true)
     try {
       await updateQuizAction({ id: quiz.id, title, description: description || undefined })
-      toast.success('Quiz actualizado')
+      setDirty(false)
+      toast.success('Quiz guardado. Redirigiendo al dashboard...')
+      router.push('/dashboard')
     } catch (error) {
       console.error('Error saving quiz:', error)
       toast.error('No se pudo guardar el quiz')
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleBackToDashboard = () => {
+    if (dirty) {
+      const confirmed = window.confirm('Tienes cambios sin guardar. ¿Estas seguro de que quieres salir?')
+      if (!confirmed) return
+    }
+    router.push('/dashboard')
   }
 
   const handleAddQuestion = async (questionId: bigint) => {
@@ -111,6 +161,79 @@ export default function EditQuiz() {
     }
   }
 
+  const handleAddSelected = async () => {
+    if (selectedAvailableIds.size === 0) return
+    setAddingBatch(true)
+    try {
+      const ids = Array.from(selectedAvailableIds)
+      await Promise.all(
+        ids.map((id, i) => addQuestionToQuizAction(quizId, id, quizQuestions.length + i + 1))
+      )
+      const added = availableQuestions.filter((q) => selectedAvailableIds.has(q.id))
+      setQuizQuestions((prev) => [...prev, ...added])
+      setSelectedAvailableIds(new Set())
+      toast.success(`${ids.length} pregunta(s) agregada(s)`)
+    } catch (error) {
+      console.error('Error adding questions:', error)
+      toast.error('No se pudieron agregar las preguntas')
+    } finally {
+      setAddingBatch(false)
+    }
+  }
+
+  const handleRemoveSelected = async () => {
+    if (selectedQuizIds.size === 0) return
+    setRemovingBatch(true)
+    try {
+      const ids = Array.from(selectedQuizIds)
+      await Promise.all(ids.map((id) => removeQuestionFromQuizAction(quizId, id)))
+      setQuizQuestions((prev) => prev.filter((q) => !selectedQuizIds.has(q.id)))
+      setSelectedQuizIds(new Set())
+      toast.success(`${ids.length} pregunta(s) eliminada(s)`)
+    } catch (error) {
+      console.error('Error removing questions:', error)
+      toast.error('No se pudieron eliminar las preguntas')
+    } finally {
+      setRemovingBatch(false)
+    }
+  }
+
+  const toggleQuizSelection = (id: bigint) => {
+    setSelectedQuizIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  const toggleAvailableSelection = (id: bigint) => {
+    setSelectedAvailableIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  const allQuizSelected = quizQuestions.length > 0 && selectedQuizIds.size === quizQuestions.length
+
+  const toggleAllQuiz = () => {
+    if (allQuizSelected) {
+      setSelectedQuizIds(new Set())
+    } else {
+      setSelectedQuizIds(new Set(quizQuestions.map((q) => q.id)))
+    }
+  }
+
+  const allFilteredSelected = filteredQuestions.length > 0 && selectedAvailableIds.size === filteredQuestions.length
+
+  const toggleAllAvailable = () => {
+    if (allFilteredSelected) {
+      setSelectedAvailableIds(new Set())
+    } else {
+      setSelectedAvailableIds(new Set(filteredQuestions.map((q) => q.id)))
+    }
+  }
+
   if (loading) {
     return <Loader message="Cargando editor..." />
   }
@@ -131,16 +254,25 @@ export default function EditQuiz() {
   return (
     <div className="min-h-screen bg-background py-8">
       <div className="container mx-auto px-4">
+        <PageBreadcrumbs items={[
+          { label: 'Dashboard', href: '/dashboard' },
+          { label: quiz?.title || 'Editar quiz' },
+        ]} />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Quiz Settings */}
           <div className="lg:col-span-2">
             <Card className="mb-8">
               <CardHeader>
-                <CardTitle>Configuracion del quiz</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Configuracion del quiz</CardTitle>
+                  <Button variant="outline" size="sm" onClick={handleBackToDashboard}>
+                    Volver al dashboard
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="title">Titulo del quiz</Label>
+                  <Label htmlFor="title" className="mb-2 block">Titulo del quiz</Label>
                   <Input
                     id="title"
                     value={title}
@@ -148,7 +280,7 @@ export default function EditQuiz() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="description">Descripcion</Label>
+                  <Label htmlFor="description" className="mb-2 block">Descripcion</Label>
                   <Textarea
                     id="description"
                     value={description}
@@ -165,9 +297,42 @@ export default function EditQuiz() {
             {/* Quiz Questions */}
             <Card>
               <CardHeader>
-                <CardTitle>
-                  Preguntas del quiz ({quizQuestions.length})
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle>
+                    Preguntas del quiz ({quizQuestions.length})
+                  </CardTitle>
+                  {quizQuestions.length > 0 && (
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="select-all-quiz"
+                          checked={allQuizSelected}
+                          onCheckedChange={toggleAllQuiz}
+                        />
+                        <Label htmlFor="select-all-quiz" className="text-sm cursor-pointer">
+                          Seleccionar todo
+                        </Label>
+                      </div>
+                      {selectedQuizIds.size > 0 && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={handleRemoveSelected}
+                          disabled={removingBatch}
+                        >
+                          {removingBatch ? (
+                            'Eliminando...'
+                          ) : (
+                            <>
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Eliminar ({selectedQuizIds.size})
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 {quizQuestions.length === 0 ? (
@@ -175,13 +340,18 @@ export default function EditQuiz() {
                     Aun no hay preguntas agregadas. Agregalas desde el panel derecho.
                   </p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
                     {quizQuestions.map((q, idx) => (
                       <div
                         key={q.id}
-                        className="flex items-start justify-between p-3 border rounded"
+                        className="flex items-start gap-3 p-3 border rounded"
                       >
-                        <div className="flex-1">
+                        <Checkbox
+                          checked={selectedQuizIds.has(q.id)}
+                          onCheckedChange={() => toggleQuizSelection(q.id)}
+                          className="mt-0.5"
+                        />
+                        <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm">
                             {idx + 1}. {q.question}
                           </p>
@@ -189,13 +359,6 @@ export default function EditQuiz() {
                             ID: {q.id}
                           </p>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveQuestion(q.id)}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
                       </div>
                     ))}
                   </div>
@@ -221,7 +384,38 @@ export default function EditQuiz() {
                   />
                 </div>
 
-                <div className="space-y-2 max-h-96 overflow-y-auto">
+                {filteredQuestions.length > 0 && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="select-all-available"
+                        checked={allFilteredSelected}
+                        onCheckedChange={toggleAllAvailable}
+                      />
+                      <Label htmlFor="select-all-available" className="text-sm cursor-pointer">
+                        Seleccionar todo
+                      </Label>
+                    </div>
+                    {selectedAvailableIds.size > 0 && (
+                      <Button
+                        size="sm"
+                        onClick={handleAddSelected}
+                        disabled={addingBatch}
+                      >
+                        {addingBatch ? (
+                          'Agregando...'
+                        ) : (
+                          <>
+                            <Plus className="w-3 h-3 mr-1" />
+                            Agregar ({selectedAvailableIds.size})
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                <div className="space-y-2 max-h-80 overflow-y-auto">
                   {filteredQuestions.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                       {searchTerm ? 'No se encontraron preguntas' : 'Todas las preguntas fueron agregadas'}
@@ -230,20 +424,24 @@ export default function EditQuiz() {
                     filteredQuestions.map((q) => (
                       <div
                         key={q.id}
-                        className="flex items-start justify-between gap-2 p-2 border rounded hover:bg-secondary text-sm"
+                        className="flex items-start gap-2 p-2 border rounded hover:bg-secondary text-sm"
                       >
+                        <Checkbox
+                          checked={selectedAvailableIds.has(q.id)}
+                          onCheckedChange={() => toggleAvailableSelection(q.id)}
+                          className="mt-0.5"
+                        />
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-xs line-clamp-2">{q.question}</p>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <p className="font-medium text-xs line-clamp-2 cursor-default">{q.question}</p>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-md">
+                              <p>{q.question}</p>
+                            </TooltipContent>
+                          </Tooltip>
                           <p className="text-xs text-muted-foreground">ID: {q.id}</p>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleAddQuestion(q.id)}
-                          className="flex-shrink-0"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </Button>
                       </div>
                     ))
                   )}

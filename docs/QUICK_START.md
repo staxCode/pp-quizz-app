@@ -3,7 +3,7 @@
 ## Primer Paso: Verificar las Variables de Entorno
 
 1. Asegúrate de que tu proyecto Supabase esté conectado en v0
-2. Las variables de entorno `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` deben estar configuradas
+2. Las variables de entorno `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` deben estar configuradas
 
 ## Segundo Paso: Cargar las Preguntas
 

@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { Spinner } from '@/components/ui/spinner'
 import { toast } from 'sonner'
 
 type CreateQuizFormValues = z.infer<typeof createQuizInputSchema>
@@ -59,7 +60,7 @@ export default function CreateQuiz() {
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               <div>
-                <Label htmlFor="title">Titulo del quiz</Label>
+                <Label htmlFor="title" className="mb-2 block">Titulo del quiz</Label>
                 <Input
                   id="title"
                   placeholder="Ingresa el titulo del quiz"
@@ -70,7 +71,7 @@ export default function CreateQuiz() {
               </div>
 
               <div>
-                <Label htmlFor="description">Descripcion (opcional)</Label>
+                <Label htmlFor="description" className="mb-2 block">Descripcion (opcional)</Label>
                 <Textarea
                   id="description"
                   placeholder="Ingresa una descripcion del quiz"
@@ -91,7 +92,7 @@ export default function CreateQuiz() {
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={loading || !isValid}>
-                  {loading ? 'Creando...' : 'Crear quiz'}
+                  {loading ? <><Spinner className="mr-2" /> Creando...</> : 'Crear quiz'}
                 </Button>
               </div>
             </form>

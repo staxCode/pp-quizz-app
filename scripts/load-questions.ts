@@ -2,8 +2,15 @@ import { createClient } from '@supabase/supabase-js'
 import * as fs from 'fs'
 import * as path from 'path'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+process.loadEnvFile() // Carga las variables de entorno desde el archivo .env
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('Missing environment variables: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env')
+  process.exit(1)
+}
 
 const supabase = createClient(supabaseUrl, supabaseKey)
 
@@ -19,7 +26,7 @@ interface QuestionData {
 async function loadQuestions() {
   try {
     // Read the JSON file
-    const jsonPath = path.join(process.cwd(), 'data', 'questions.json')
+    const jsonPath = path.join(process.cwd(), 'data', 'siecopol_preguntas_101_150.json')
     const jsonData = fs.readFileSync(jsonPath, 'utf-8')
     const questions: QuestionData[] = JSON.parse(jsonData)
 
