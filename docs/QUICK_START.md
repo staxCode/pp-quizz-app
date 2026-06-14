@@ -21,26 +21,27 @@
 
 ## Cuarto Paso: Crear tu Primer Cuestionario
 
-1. En el Dashboard, haz clic en "Create Quiz"
+1. En el Dashboard, haz clic en "Crear quiz"
 2. Ingresa el título y descripción
-3. Haz clic en "Create Quiz"
+3. Haz clic en "Crear"
 4. Se abrirá la página de edición del cuestionario
 
 ## Quinto Paso: Agregar Preguntas al Cuestionario
 
 1. En la página de edición, busca preguntas en el panel derecho
 2. Usa el campo de búsqueda para encontrar preguntas por nombre o ID
-3. Haz clic en el botón "+" para agregar una pregunta
-4. Las preguntas aparecerán en el listado del cuestionario
-5. Puedes remover preguntas con el botón "X"
+3. Marca las preguntas que deseas agregar con los checkboxes
+4. Haz clic en "Agregar seleccionadas"
+5. Para quitar preguntas, márcalas en la lista del cuestionario y haz clic en "Quitar seleccionadas"
 
 ## Sexto Paso: Tomar el Cuestionario
 
-1. Desde el Dashboard, haz clic en "Take Quiz" en tu cuestionario
-2. Responde cada pregunta seleccionando una opción
-3. Usa "Next" y "Previous" para navegar
-4. Los números de preguntas en la parte inferior muestran tu progreso
-5. Cuando termines, haz clic en "Submit Quiz"
+1. Desde el Dashboard, haz clic en "Resolver" en tu cuestionario
+2. Aparecerá un modal con las instrucciones del quiz
+3. Responde cada pregunta seleccionando una opción
+4. Usa "Siguiente" y "Anterior" para navegar (no puedes saltar sin responder)
+5. Los números de preguntas en la parte inferior muestran tu progreso
+6. Cuando termines, haz clic en "Enviar quiz"
 
 ## Ver Resultados
 
@@ -54,7 +55,9 @@
 - **Total Quizzes**: Número de cuestionarios creados
 - **Completed Attempts**: Cuestionarios completados
 - **Average Score**: Promedio de tus puntuaciones
-- **Recent Attempts**: Historial de tus últimos intentos
+- **Recent Attempts**: Historial de tus últimos intentos (máx. 5 visibles, con scroll)
+- **Badge "Completado"**: Quizzes con puntuación perfecta (100%) muestran badge verde
+- **Intentos en progreso**: Tarjetas amarillas cliqueables para continuar
 
 ### Crear Cuestionario
 - Define un título único
@@ -63,22 +66,24 @@
 
 ### Editar Cuestionario
 - Modifica título y descripción
-- Agrega más preguntas
-- Elimina preguntas existentes
-- Busca preguntas fácilmente
+- Agrega/quita preguntas por lote con checkboxes
+- Búsqueda con debounce (300ms)
+- Tooltip en preguntas truncadas
+- Advertencia de cambios no guardados
 
 ### Tomar Cuestionario
-- Visualización clara de la pregunta actual
-- Barra de progreso
-- Indicador de preguntas respondidas
-- Navegación fluida
+- Modal de instrucciones al iniciar
+- Barra de progreso con contador respondidas/total
+- Navegación bloqueada: no puedes saltar sin responder
+- Indicador de preguntas respondidas y bloqueadas
+- Solo se puede enviar cuando todas están respondidas
 
 ## Consejos
 
 1. **Búsqueda de Preguntas**: Puedes buscar por ID de pregunta o por palabras en el texto de la pregunta
-2. **Progreso**: Los números de pregunta en azul indican preguntas ya respondidas
+2. **Progreso**: Los números de pregunta en azul indican preguntas ya respondidas; los atenuados están bloqueados
 3. **Revisión**: Siempre puedes revisar tus respuestas después de completar
-4. **Historial**: Tu historial de intentos está disponible en el panel derecho del Dashboard
+4. **Historial**: Tu historial de intentos está disponible en el panel derecho del Dashboard; haz clic para ver resultados o continuar
 
 ## Estructura de tu Primer Cuestionario (Ejemplo)
 
