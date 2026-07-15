@@ -1,14 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useDebounce } from '@/hooks/use-debounce'
 import {
-  addQuestionToQuizAction,
+  addQuestionsBatchToQuizAction,
   getQuestionsAction,
   getQuizQuestionsAction,
   getQuizzesAction,
-  removeQuestionFromQuizAction,
+  removeQuestionsBatchFromQuizAction,
   updateQuizAction,
 } from '@/features/quiz/actions'
 import { Quiz, Question } from '@/lib/types'
@@ -25,6 +25,13 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { Plus, Search, Trash2 } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { toast } from 'sonner'
 import { PageBreadcrumbs } from '@/components/page-breadcrumbs'
 
@@ -41,13 +48,29 @@ export default function EditQuiz() {
   const debouncedSearch = useDebounce(searchTerm, 300)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [addingBatch, setAddingBatch] = useState(false)
-  const [removingBatch, setRemovingBatch] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [selectedQuizIds, setSelectedQuizIds] = useState<Set<bigint>>(new Set())
   const [selectedAvailableIds, setSelectedAvailableIds] = useState<Set<bigint>>(new Set())
   const [dirty, setDirty] = useState(false)
+  const [addedQuestions, setAddedQuestions] = useState<Question[]>([])
+  const [removedQuestionIds, setRemovedQuestionIds] = useState<Set<bigint>>(new Set())
+  const [displayLimit, setDisplayLimit] = useState<number>(50)
+  const [idRangeMin, setIdRangeMin] = useState<string>('')
+  const [idRangeMax, setIdRangeMax] = useState<string>('')
+
+  const displayedQuizQuestions = useMemo(
+    () => [
+      ...quizQuestions.filter((q) => !removedQuestionIds.has(q.id)),
+      ...addedQuestions,
+    ],
+    [quizQuestions, removedQuestionIds, addedQuestions]
+  )
+
+  const limitedFilteredQuestions = useMemo(
+    () => filteredQuestions.slice(0, displayLimit),
+    [filteredQuestions, displayLimit]
+  )
 
   useEffect(() => {
     const loadData = async () => {
@@ -77,20 +100,29 @@ export default function EditQuiz() {
   }, [quizId])
 
   useEffect(() => {
+    const min = idRangeMin ? Number(idRangeMin) : null
+    const max = idRangeMax ? Number(idRangeMax) : null
     const filtered = availableQuestions.filter(
       (q) =>
-        !quizQuestions.find((qq) => qq.id === q.id) &&
+        !displayedQuizQuestions.find((qq) => qq.id === q.id) &&
         (q.question.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-          q.id.toString().includes(debouncedSearch))
+          q.id.toString().includes(debouncedSearch)) &&
+        (min === null || Number(q.id) >= min) &&
+        (max === null || Number(q.id) <= max)
     )
     setFilteredQuestions(filtered)
-  }, [debouncedSearch, availableQuestions, quizQuestions])
+  }, [debouncedSearch, availableQuestions, displayedQuizQuestions, idRangeMin, idRangeMax])
 
   useEffect(() => {
-    if (!dirty && (title !== quiz?.title || description !== (quiz?.description || ''))) {
+    const hasChanges =
+      title !== quiz?.title ||
+      description !== (quiz?.description || '') ||
+      addedQuestions.length > 0 ||
+      removedQuestionIds.size > 0
+    if (!dirty && hasChanges) {
       setDirty(true)
     }
-  }, [title, description])
+  }, [title, description, addedQuestions, removedQuestionIds, quiz])
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -110,15 +142,34 @@ export default function EditQuiz() {
       return
     }
 
-    if (quizQuestions.length === 0) {
+    const finalQuestions = [
+      ...quizQuestions.filter((q) => !removedQuestionIds.has(q.id)),
+      ...addedQuestions,
+    ]
+
+    if (finalQuestions.length === 0) {
       toast.error('Debes agregar al menos una pregunta al quiz')
       return
     }
 
     setSaving(true)
     try {
+      if (removedQuestionIds.size > 0) {
+        await removeQuestionsBatchFromQuizAction(quiz.id, Array.from(removedQuestionIds))
+      }
+
+      if (addedQuestions.length > 0) {
+        const orderStart = quizQuestions.filter((q) => !removedQuestionIds.has(q.id)).length + 1
+        await addQuestionsBatchToQuizAction(
+          quiz.id,
+          addedQuestions.map((q, i) => ({ questionId: q.id, orderNum: orderStart + i }))
+        )
+      }
+
       await updateQuizAction({ id: quiz.id, title, description: description || undefined })
       setDirty(false)
+      setAddedQuestions([])
+      setRemovedQuestionIds(new Set())
       toast.success('Quiz guardado. Redirigiendo al dashboard...')
       router.push('/dashboard')
     } catch (error) {
@@ -138,64 +189,40 @@ export default function EditQuiz() {
   }
 
   const handleAddQuestion = async (questionId: bigint) => {
-    try {
-      const orderNum = quizQuestions.length + 1
-      await addQuestionToQuizAction(quizId, questionId, orderNum)
-      const question = availableQuestions.find((q) => q.id === questionId)
-      if (question) {
-        setQuizQuestions((prev) => [...prev, question])
-      }
-    } catch (error) {
-      console.error('Error adding question:', error)
-      toast.error('No se pudo agregar la pregunta')
-    }
+    const question = availableQuestions.find((q) => q.id === questionId)
+    if (!question) return
+    setAddedQuestions((prev) => [...prev, question])
   }
 
   const handleRemoveQuestion = async (questionId: bigint) => {
-    try {
-      await removeQuestionFromQuizAction(quizId, questionId)
-      setQuizQuestions((prev) => prev.filter((q) => q.id !== questionId))
-    } catch (error) {
-      console.error('Error removing question:', error)
-      toast.error('No se pudo eliminar la pregunta')
+    if (addedQuestions.find((q) => q.id === questionId)) {
+      setAddedQuestions((prev) => prev.filter((q) => q.id !== questionId))
+    } else {
+      setRemovedQuestionIds((prev) => new Set(prev).add(questionId))
     }
   }
 
   const handleAddSelected = async () => {
     if (selectedAvailableIds.size === 0) return
-    setAddingBatch(true)
-    try {
-      const ids = Array.from(selectedAvailableIds)
-      await Promise.all(
-        ids.map((id, i) => addQuestionToQuizAction(quizId, id, quizQuestions.length + i + 1))
-      )
-      const added = availableQuestions.filter((q) => selectedAvailableIds.has(q.id))
-      setQuizQuestions((prev) => [...prev, ...added])
-      setSelectedAvailableIds(new Set())
-      toast.success(`${ids.length} pregunta(s) agregada(s)`)
-    } catch (error) {
-      console.error('Error adding questions:', error)
-      toast.error('No se pudieron agregar las preguntas')
-    } finally {
-      setAddingBatch(false)
-    }
+    const added = availableQuestions.filter((q) => selectedAvailableIds.has(q.id))
+    setAddedQuestions((prev) => [...prev, ...added])
+    setSelectedAvailableIds(new Set())
+    toast.success(`${added.length} pregunta(s) agregada(s)`)
   }
 
   const handleRemoveSelected = async () => {
     if (selectedQuizIds.size === 0) return
-    setRemovingBatch(true)
-    try {
-      const ids = Array.from(selectedQuizIds)
-      await Promise.all(ids.map((id) => removeQuestionFromQuizAction(quizId, id)))
-      setQuizQuestions((prev) => prev.filter((q) => !selectedQuizIds.has(q.id)))
-      setSelectedQuizIds(new Set())
-      toast.success(`${ids.length} pregunta(s) eliminada(s)`)
-    } catch (error) {
-      console.error('Error removing questions:', error)
-      toast.error('No se pudieron eliminar las preguntas')
-    } finally {
-      setRemovingBatch(false)
-    }
+    const newRemoved = new Set(removedQuestionIds)
+    const newAdded = addedQuestions.filter((q) => !selectedQuizIds.has(q.id))
+    selectedQuizIds.forEach((id) => {
+      if (quizQuestions.find((q) => q.id === id)) {
+        newRemoved.add(id)
+      }
+    })
+    setRemovedQuestionIds(newRemoved)
+    setAddedQuestions(newAdded)
+    setSelectedQuizIds(new Set())
+    toast.success(`${selectedQuizIds.size} pregunta(s) eliminada(s)`)
   }
 
   const toggleQuizSelection = (id: bigint) => {
@@ -214,23 +241,23 @@ export default function EditQuiz() {
     })
   }
 
-  const allQuizSelected = quizQuestions.length > 0 && selectedQuizIds.size === quizQuestions.length
+  const allQuizSelected = displayedQuizQuestions.length > 0 && selectedQuizIds.size === displayedQuizQuestions.length
 
   const toggleAllQuiz = () => {
     if (allQuizSelected) {
       setSelectedQuizIds(new Set())
     } else {
-      setSelectedQuizIds(new Set(quizQuestions.map((q) => q.id)))
+      setSelectedQuizIds(new Set(displayedQuizQuestions.map((q) => q.id)))
     }
   }
 
-  const allFilteredSelected = filteredQuestions.length > 0 && selectedAvailableIds.size === filteredQuestions.length
+  const allFilteredSelected = limitedFilteredQuestions.length > 0 && selectedAvailableIds.size === limitedFilteredQuestions.length
 
   const toggleAllAvailable = () => {
     if (allFilteredSelected) {
       setSelectedAvailableIds(new Set())
     } else {
-      setSelectedAvailableIds(new Set(filteredQuestions.map((q) => q.id)))
+      setSelectedAvailableIds(new Set(limitedFilteredQuestions.map((q) => q.id)))
     }
   }
 
@@ -299,9 +326,9 @@ export default function EditQuiz() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>
-                    Preguntas del quiz ({quizQuestions.length})
+                    Preguntas del quiz ({displayedQuizQuestions.length})
                   </CardTitle>
-                  {quizQuestions.length > 0 && (
+                  {displayedQuizQuestions.length > 0 && (
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
                         <Checkbox
@@ -318,16 +345,11 @@ export default function EditQuiz() {
                           variant="destructive"
                           size="sm"
                           onClick={handleRemoveSelected}
-                          disabled={removingBatch}
                         >
-                          {removingBatch ? (
-                            'Eliminando...'
-                          ) : (
-                            <>
-                              <Trash2 className="w-4 h-4 mr-1" />
-                              Eliminar ({selectedQuizIds.size})
-                            </>
-                          )}
+                          <>
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Eliminar ({selectedQuizIds.size})
+                          </>
                         </Button>
                       )}
                     </div>
@@ -335,13 +357,13 @@ export default function EditQuiz() {
                 </div>
               </CardHeader>
               <CardContent>
-                {quizQuestions.length === 0 ? (
+                {displayedQuizQuestions.length === 0 ? (
                   <p className="text-muted-foreground mb-4">
                     Aun no hay preguntas agregadas. Agregalas desde el panel derecho.
                   </p>
                 ) : (
                   <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-                    {quizQuestions.map((q, idx) => (
+                    {displayedQuizQuestions.map((q, idx) => (
                       <div
                         key={q.id}
                         className="flex items-start gap-3 p-3 border rounded"
@@ -384,6 +406,49 @@ export default function EditQuiz() {
                   />
                 </div>
 
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm whitespace-nowrap">Mostrar:</Label>
+                  <Select
+                    value={displayLimit.toString()}
+                    onValueChange={(v) => setDisplayLimit(Number(v))}
+                  >
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                      <SelectItem value="200">200</SelectItem>
+                      <SelectItem value="9999">Todas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground">
+                    ({filteredQuestions.length} resultados)
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm whitespace-nowrap">Rango ID:</Label>
+                  <Input
+                    type="number"
+                    placeholder="Min"
+                    value={idRangeMin}
+                    onChange={(e) => setIdRangeMin(e.target.value)}
+                    className="w-[80px]"
+                    min={0}
+                  />
+                  <span className="text-muted-foreground">-</span>
+                  <Input
+                    type="number"
+                    placeholder="Max"
+                    value={idRangeMax}
+                    onChange={(e) => setIdRangeMax(e.target.value)}
+                    className="w-[80px]"
+                    min={0}
+                  />
+                </div>
+
                 {filteredQuestions.length > 0 && (
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -400,28 +465,23 @@ export default function EditQuiz() {
                       <Button
                         size="sm"
                         onClick={handleAddSelected}
-                        disabled={addingBatch}
                       >
-                        {addingBatch ? (
-                          'Agregando...'
-                        ) : (
-                          <>
-                            <Plus className="w-3 h-3 mr-1" />
-                            Agregar ({selectedAvailableIds.size})
-                          </>
-                        )}
+                        <>
+                          <Plus className="w-3 h-3 mr-1" />
+                          Agregar ({selectedAvailableIds.size})
+                        </>
                       </Button>
                     )}
                   </div>
                 )}
 
                 <div className="space-y-2 max-h-80 overflow-y-auto">
-                  {filteredQuestions.length === 0 ? (
+                  {limitedFilteredQuestions.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                       {searchTerm ? 'No se encontraron preguntas' : 'Todas las preguntas fueron agregadas'}
                     </p>
                   ) : (
-                    filteredQuestions.map((q) => (
+                    limitedFilteredQuestions.map((q) => (
                       <div
                         key={q.id}
                         className="flex items-start gap-2 p-2 border rounded hover:bg-secondary text-sm"
