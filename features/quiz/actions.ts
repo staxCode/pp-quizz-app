@@ -104,6 +104,29 @@ export async function removeQuestionFromQuizAction(quizId: string, questionId: b
   if (error) throw error
 }
 
+export async function addQuestionsBatchToQuizAction(
+  quizId: string,
+  questions: { questionId: bigint; orderNum: number }[]
+) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('quiz_questions')
+    .insert(questions.map((q) => ({ quiz_id: quizId, question_id: q.questionId, order_num: q.orderNum })))
+
+  if (error) throw error
+}
+
+export async function removeQuestionsBatchFromQuizAction(quizId: string, questionIds: bigint[]) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('quiz_questions')
+    .delete()
+    .eq('quiz_id', quizId)
+    .in('question_id', questionIds)
+
+  if (error) throw error
+}
+
 export async function deleteQuizAction(quizId: string) {
   const supabase = await createClient()
   const { error } = await supabase.from('quizzes').delete().eq('id', quizId)

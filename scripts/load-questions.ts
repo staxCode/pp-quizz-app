@@ -26,7 +26,7 @@ interface QuestionData {
 async function loadQuestions() {
   try {
     // Read the JSON file
-    const jsonPath = path.join(process.cwd(), 'data', 'siecopol_preguntas_101_150.json')
+    const jsonPath = path.join(process.cwd(), 'data', 'siecopol_preguntas_601_650.json')
     const jsonData = fs.readFileSync(jsonPath, 'utf-8')
     const questions: QuestionData[] = JSON.parse(jsonData)
 
